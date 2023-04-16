@@ -11,7 +11,6 @@ uint8_t vwf_current_mask;
 uint8_t vwf_current_rotate;
 uint8_t vwf_inverse_map = 0;
 uint8_t vwf_current_tile;
-uint8_t vwf_mode = VWF_MODE_PRINT;
 
 uint8_t * vwf_render_base_address = VWF_DEFAULT_BASE_ADDRESS;
 
@@ -19,15 +18,15 @@ font_desc_t vwf_current_font_desc;
 uint8_t vwf_current_font_bank;
 
 void vwf_print_shift_char(void * dest, const void * src, uint8_t bank) OLDCALL;
-        void vwf_memcpy(void* to, const void* from, size_t n, uint8_t bank) OLDCALL;
+void vwf_memcpy(void* to, const void* from, size_t n, uint8_t bank) OLDCALL;
 uint8_t vwf_read_banked_ubyte(const void * src, uint8_t bank) OLDCALL __preserves_regs(b, c) ;
-        uint8_t * vwf_get_win_addr() OLDCALL __preserves_regs(b, c, h, l) ;
+uint8_t * vwf_get_win_addr() OLDCALL __preserves_regs(b, c, h, l) ;
 uint8_t * vwf_get_bkg_addr() OLDCALL __preserves_regs(b, c, h, l) ;
-        void vwf_set_banked_data(uint8_t i, uint8_t l, const unsigned char* ptr, uint8_t bank) OLDCALL;
+void vwf_set_banked_data(uint8_t i, uint8_t l, const unsigned char* ptr, uint8_t bank) OLDCALL;
 void vwf_swap_tiles() OLDCALL;
 
 
-        void vwf_set_destination(vwf_reder_dest_e destination) {
+void vwf_set_destination(vwf_reder_dest_e destination) {
     vwf_render_base_address = (destination == VWF_RENDER_BKG) ? vwf_get_bkg_addr() : vwf_get_win_addr();
 }
 
@@ -96,10 +95,10 @@ uint8_t vwf_draw_text(uint8_t x, uint8_t y, uint8_t base_tile, const unsigned ch
                 break;
             default:
                 if (vwf_print_render(*ui_text_ptr)) {
-                    if (vwf_mode & VWF_MODE_PRINT) set_vram_byte(ui_dest_ptr, vwf_current_tile - 1);
+                    set_vram_byte(ui_dest_ptr, vwf_current_tile - 1);
                     ui_dest_ptr += DEVICE_SCREEN_MAP_ENTRY_SIZE;
                 }
-                if ((vwf_current_offset) && (vwf_mode & VWF_MODE_PRINT)) set_vram_byte(ui_dest_ptr, vwf_current_tile);
+                if ((vwf_current_offset)) set_vram_byte(ui_dest_ptr, vwf_current_tile);
                 break;
         }
         ui_text_ptr++;
@@ -163,6 +162,8 @@ void vwf_initialize_textarea(uint8_t xTile, uint8_t yTile, uint8_t width, uint8_
     vwf_textarea_current_character_index = 0u;
 
     //TODO: Initialize the vram tiles
+    vwf_print_reset(vram_start_index);
+
     //TODO: Assign the bg tiles to the vram indexes
 }
 
