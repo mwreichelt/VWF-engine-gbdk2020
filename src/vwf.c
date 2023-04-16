@@ -1,10 +1,6 @@
 #include "vwf.h"
 
-#if defined(NINTENDO)
 #define VWF_DEFAULT_BASE_ADDRESS 0x9800
-#elif defined(SEGA)
-#define VWF_DEFAULT_BASE_ADDRESS 0x7800
-#endif
 #define DEVICE_TILE_SIZE 8u
 
 vwf_farptr_t vwf_fonts[4];
@@ -22,33 +18,24 @@ uint8_t * vwf_render_base_address = VWF_DEFAULT_BASE_ADDRESS;
 font_desc_t vwf_current_font_desc;
 uint8_t vwf_current_font_bank;
 
-#if defined(NINTENDO)
 void vwf_print_shift_char(void * dest, const void * src, uint8_t bank) OLDCALL;
-void vwf_memcpy(void* to, const void* from, size_t n, uint8_t bank) OLDCALL;
+        void vwf_memcpy(void* to, const void* from, size_t n, uint8_t bank) OLDCALL;
 uint8_t vwf_read_banked_ubyte(const void * src, uint8_t bank) OLDCALL __preserves_regs(b, c) ;
-uint8_t * vwf_get_win_addr() OLDCALL __preserves_regs(b, c, h, l) ;
+        uint8_t * vwf_get_win_addr() OLDCALL __preserves_regs(b, c, h, l) ;
 uint8_t * vwf_get_bkg_addr() OLDCALL __preserves_regs(b, c, h, l) ;
-void vwf_set_banked_data(uint8_t i, uint8_t l, const unsigned char* ptr, uint8_t bank) OLDCALL;
+        void vwf_set_banked_data(uint8_t i, uint8_t l, const unsigned char* ptr, uint8_t bank) OLDCALL;
 void vwf_swap_tiles() OLDCALL;
-#elif defined(SEGA)
-void vwf_print_shift_char(void * dest, const void * src, uint8_t bank) Z88DK_CALLEE;
-void vwf_memcpy(void* to, const void* from, size_t n, uint8_t bank) Z88DK_CALLEE;
-uint8_t vwf_read_banked_ubyte(const void * src, uint8_t bank) Z88DK_CALLEE;
-uint8_t * vwf_get_win_addr() OLDCALL;
-uint8_t * vwf_get_bkg_addr() OLDCALL;
-void vwf_set_banked_data(uint8_t i, uint8_t l, const unsigned char* ptr, uint8_t bank) Z88DK_CALLEE;
-void vwf_swap_tiles() OLDCALL;
-#endif
 
-void vwf_set_destination(vwf_reder_dest_e destination) {
+
+        void vwf_set_destination(vwf_reder_dest_e destination) {
     vwf_render_base_address = (destination == VWF_RENDER_BKG) ? vwf_get_bkg_addr() : vwf_get_win_addr();
 }
 
 void vwf_print_reset(uint8_t tile) {
     vwf_current_tile = tile;
     vwf_current_offset = 0;
-    vwf_swap_tiles(); 
-    vwf_swap_tiles(); 
+    vwf_swap_tiles();
+    vwf_swap_tiles();
 }
 
 uint8_t vwf_print_render(const unsigned char ch) {
@@ -99,14 +86,14 @@ uint8_t vwf_draw_text(uint8_t x, uint8_t y, uint8_t base_tile, const unsigned ch
             case 0x02:
                 ui_dest_ptr = ui_dest_base = vwf_render_base_address + (*++ui_text_ptr + DEVICE_SCREEN_Y_OFFSET) * (DEVICE_SCREEN_BUFFER_WIDTH * DEVICE_SCREEN_MAP_ENTRY_SIZE) + ((*++ui_text_ptr + DEVICE_SCREEN_X_OFFSET) * DEVICE_SCREEN_MAP_ENTRY_SIZE);
                 if (vwf_current_offset) vwf_print_reset(vwf_current_tile + 1u);
-                break; 
+                break;
             case 0x03:
                 vwf_inverse_map = *++ui_text_ptr;
                 break;
             case '\n':
                 ui_dest_ptr = ui_dest_base += (DEVICE_SCREEN_BUFFER_WIDTH * DEVICE_SCREEN_MAP_ENTRY_SIZE);
                 if (vwf_current_offset) vwf_print_reset(vwf_current_tile + 1u);
-                break; 
+                break;
             default:
                 if (vwf_print_render(*ui_text_ptr)) {
                     if (vwf_mode & VWF_MODE_PRINT) set_vram_byte(ui_dest_ptr, vwf_current_tile - 1);
@@ -123,14 +110,81 @@ uint8_t vwf_draw_text(uint8_t x, uint8_t y, uint8_t base_tile, const unsigned ch
 void vwf_load_font(uint8_t idx, const void * font, uint8_t bank) {
     vwf_fonts[idx].bank = bank;
     vwf_fonts[idx].ptr = (void *)font;
-    vwf_activate_font(idx); 
+    vwf_activate_font(idx);
 }
 
 void vwf_activate_font(uint8_t idx) {
     vwf_current_font_bank = vwf_fonts[idx].bank;
-    vwf_memcpy(&vwf_current_font_desc, vwf_fonts[idx].ptr, sizeof(font_desc_t), vwf_current_font_bank);    
+    vwf_memcpy(&vwf_current_font_desc, vwf_fonts[idx].ptr, sizeof(font_desc_t), vwf_current_font_bank);
 }
 
 uint8_t vwf_next_tile() {
     return (vwf_current_offset) ? vwf_current_tile + 1u : vwf_current_tile;
 }
+
+//region User controlled text area
+
+//For knowing how quickly to render characters
+uint8_t vwf_textarea_characters_per_tick;
+uint8_t vwf_textarea_animationticks_per_vwf_tick;
+
+//For knowing the size of our textarea
+uint8_t vwf_textarea_x;
+uint8_t vwf_textarea_y;
+uint8_t vwf_textarea_w;
+uint8_t vwf_textarea_h;
+
+//For knowing the current tile in vram
+uint8_t vwf_textarea_start_tile;
+uint8_t vwf_textarea_ending_tile;
+uint8_t vwf_textarea_current_tile;
+
+//For knowing the current width index of our vram tile
+uint8_t vwf_textarea_vram_width;
+uint8_t vwf_textarea_vram_count;
+
+//For knowing what we are in the middle of rendering
+vwf_text_segment_t * vwf_textarea_current_segment;
+uint8_t vwf_textarea_current_segment_bank;
+
+//For tracking where in the current segment's string we are for rendering
+uint16_t vwf_textarea_current_character_index;
+
+void vwf_initialize_textarea(uint8_t xTile, uint8_t yTile, uint8_t width, uint8_t height, uint8_t vram_start_index) {
+    vwf_textarea_x = xTile;
+    vwf_textarea_y = yTile;
+    vwf_textarea_w = width;
+    vwf_textarea_h = height;
+    vwf_textarea_current_tile = vram_start_index;
+    vwf_textarea_vram_count = width * height;
+    //TODO: add some sort of check to make sure that start index isn't too high?
+    vwf_textarea_ending_tile = vwf_textarea_vram_count + vram_start_index;
+    vwf_textarea_vram_width = 0u;
+    vwf_textarea_current_character_index = 0u;
+
+    //TODO: Initialize the vram tiles
+    //TODO: Assign the bg tiles to the vram indexes
+}
+
+void vwf_set_text_segment(vwf_text_segment_t * first_text_segment_ptr, uint8_t text_segment_bank) {
+    vwf_textarea_current_segment = first_text_segment_ptr;
+    vwf_textarea_current_segment_bank = text_segment_bank;
+}
+
+void vwf_set_text_speed(uint8_t characters_per_tick, uint8_t animationticks_per_character_tick) {
+    vwf_textarea_characters_per_tick = characters_per_tick;
+    vwf_textarea_animationticks_per_vwf_tick = animationticks_per_character_tick;
+}
+
+void vwf_textarea_vblank_update() {
+    //TODO: Determine if we need to draw a new character
+    if(1) {
+        //TODO: Process characters in the current segment until we have reached a renderable character
+        //TODO: Render the new character
+        //TODO: Do we need to render more characters during this vblank?
+    }
+
+    //TODO: Do we need to change any sprites for the text box animation?
+}
+
+//endregion
