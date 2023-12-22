@@ -20,8 +20,11 @@ This library requires the latest [GBDK-2020 v.4.1.1](https://github.com/gbdk-202
    - Added a description which specifically mentions needing a png file with indexed colors to generate the font from
    - Added -v flag for verbose output when your font didn't generate correctly and you aren't sure why
    - Added -r for reverse palette order. This is useful for when you realize that you've made a .png for your font with your color indexes in the opposite order than what png2font expects. Or when you'd like to create an inverted version of your font.
+ - Textarea basic printing. Define an x,y coordinate and a width and height, specify a text segment to print, and register your vblank interrupt handler to make it print one character at a time.
+   - Manual linebreak ("\n") support
 
 ### Planned Features (in order of how likely I am to actually implement them):
+- GG and SMS support for textareas
 - Support for text advancement in a player controlled text area
   - You know, like a JRPG text box
 - Text printing speed
@@ -41,8 +44,10 @@ This library requires the latest [GBDK-2020 v.4.1.1](https://github.com/gbdk-202
 
 ## Screenshots
 
+![GameBoy](/gb.png)
+
 Screenshots from [untoxa/VWF](http://github.com/untoxa/VWF):
 
-![GameBoy](/gb.png) ![GameGear](/gg.png)
+![GameGear](/gg.png)
 
 ![MasterSystem](/sms.png)
