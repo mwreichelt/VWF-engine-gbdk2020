@@ -1,9 +1,15 @@
 #include <gbdk/platform.h>
 
 #include "vwf.h"
+#include "vwf_textarea.h"
 #include "vwf_font.h"
 #include "vwf_font_bold.h"
 #include "vwf_font_ru.h"
+
+#if defined(NINTENDO)
+const vwf_text_segment_t segment_1 = { &segment_2, "This is a textarea.\nPress A to advance text!"};
+const vwf_text_segment_t segment_2 = { &segment_1, "Pretty neat!"};
+#endif
 
 void main() {
     fill_bkg_rect(0, 0, DEVICE_SCREEN_WIDTH, DEVICE_SCREEN_HEIGHT, 0x00u);
@@ -21,17 +27,29 @@ void main() {
     vwf_draw_text(12, 1, vwf_next_tile(), "The third\ntext block\nto the right\nof the first\none");
 
 #if defined(NINTENDO)
+    add_VBL(vwf_textarea_vblank_update);
+
     fill_win_rect(0, 0, DEVICE_SCREEN_WIDTH, DEVICE_SCREEN_HEIGHT, 0x00u);
 
     vwf_set_destination(VWF_RENDER_WIN);
     vwf_draw_text(1, 0, vwf_next_tile(), "This text should be rendered\non the window layer.");
 
     WX_REG = 7u; WY_REG = 144;
-    SHOW_WIN; 
+    SHOW_WIN;
     for (uint8_t i = 143; i != 103; i--) {
         WY_REG = i;
         wait_vbl_done();
     }
-#endif
-}
 
+    //Render a message in a textarea
+    vwf_textarea_activate_font(0u);
+    vwf_initialize_textarea(1u, 1u, 10u, 2u, 0x82);
+
+    //Set next text segment
+    vwf_textarea_current_segment = (vwf_text_segment_t *) &segment_1;
+    vwf_textarea_current_segment_bank = 0;
+    vwf_textarea_enabled = TRUE;
+
+#endif
+
+}

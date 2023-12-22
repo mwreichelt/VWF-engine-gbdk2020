@@ -1,5 +1,6 @@
 # VWF-engine-gbdk2020
 A Variable Width Font engine for Nintendo Game Boy, (and maybe Sega Master System and Sega Game Gear) written for gbdk2020. Forked from untoxa/VWF which is recommended if you don't need all the extra functions here.
+## Currently, this library does not work!
 
 ## Pre-Requisites
 
