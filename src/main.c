@@ -11,15 +11,15 @@ const vwf_text_segment_t segment_1 = { &segment_2, "This is a textarea.\nPress A
 const vwf_text_segment_t segment_2 = { &segment_1, "Pretty neat!"};
 #endif
 
-void main() {
+void main(void) {
     fill_bkg_rect(0, 0, DEVICE_SCREEN_WIDTH, DEVICE_SCREEN_HEIGHT, 0x00u);
     SHOW_BKG;
 
     vwf_set_destination(VWF_RENDER_BKG);
 
-    vwf_load_font(0, vwf_font, (UBYTE)&__bank_vwf_font);
-    vwf_load_font(1, vwf_font_bold, (UBYTE)&__bank_vwf_font_bold);
-    vwf_load_font(2, font_ru, (UBYTE)&__bank_font_ru);
+    vwf_load_font(0, vwf_font, BANK(vwf_font));
+    vwf_load_font(1, vwf_font_bold, BANK(vwf_font_bold));
+    vwf_load_font(2, font_ru, BANK(font_ru));
     vwf_activate_font(2);
 
     vwf_draw_text(3, 3, 1, "Hello, world!\n\x01\x01\BOLD\x01\x00\n\x03\xffthis is a \x01\x01test\x01\x00\x03\x00\nof the new line\ncontrol symbol");
