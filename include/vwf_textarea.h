@@ -1,6 +1,9 @@
 #if defined(NINTENDO)
 #include "vwf_common.h"
 
+#ifndef _VWF_TEXTAREA
+#define _VWF_TEXTAREA
+
 // Defines a segment of text to display and a pointer to the next one.
 typedef struct vwf_text_segment_t {
     const struct vwf_text_segment_t * next;
@@ -70,4 +73,5 @@ void vwf_textarea_activate_font(uint8_t index);
 void vwf_textarea_swap_tiles() OLDCALL;
 void vwf_textarea_print_shift_char(void * dest, const void * src, uint8_t bank) OLDCALL;
 
+#endif
 #endif
