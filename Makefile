@@ -7,6 +7,10 @@ GBDK_HOME = ../gbdk/
 endif
 
 LCC = $(GBDK_HOME)bin/lcc
+SDAR = $(GBDK_HOME)bin/sdar
+
+CPUS = sm83 z80
+LIBTARGETS = full vwf textarea
 
 # Set platforms to build here, spaced separated. (These are in the separate Makefile.targets)
 # They can also be built/cleaned individually: "make gg" and "make gg-clean"
@@ -38,7 +42,8 @@ SRCPLAT     = src/$(PORT)
 OBJDIR      = obj/$(EXT)
 RESDIR      = res
 BINDIR      = build/$(EXT)
-MKDIRS      = $(OBJDIR) $(BINDIR) # See bottom of Makefile for directory auto-creation
+LIBDIR		= build/$(CPUS)
+MKDIRS      = $(OBJDIR) $(BINDIR) $(LIBDIR) # See bottom of Makefile for directory auto-creation
 
 BINS	    = $(OBJDIR)/$(PROJECTNAME).$(EXT)
 CSOURCES    = $(foreach dir,$(SRCDIR),$(notdir $(wildcard $(dir)/*.c))) $(foreach dir,$(SRCPLAT),$(notdir $(wildcard $(dir)/*.c))) $(foreach dir,$(RESDIR),$(notdir $(wildcard $(dir)/*.c)))
@@ -76,6 +81,16 @@ $(OBJDIR)/%.s:	$(SRCDIR)/%.c
 # Link the compiled object files into a .gb ROM file
 $(BINS):	$(OBJS)
 	$(LCC) $(LCCFLAGS) $(CFLAGS) -o $(BINDIR)/$(PROJECTNAME).$(EXT) $(OBJS)
+
+lib: $(OBJS)
+	$(SDAR) -ru build/sm83/vwf-textarea_full.lib obj/gb/vwf_a.o obj/gb/vwf_common_a.o obj/gb/vwf_textarea_a.o obj/gb/vwf.o obj/gb/vwf_common.o obj/gb/vwf_textarea.o
+	cp include/vwf.h build/sm83/
+	cp include/vwf_common.h build/sm83
+	cp include/vwf_textarea.h build/sm83
+	$(SDAR) -ru build/z80/vwf-textarea_full.lib obj/gb/vwf_a.o obj/gb/vwf.o #obj/gb/vwf_common_a.o obj/gb/vwf_textarea_a.o obj/gb/vwf_common.o obj/gb/vwf_textarea.o
+	cp include/vwf.h build/z80/
+	#cp include/vwf_common.h build/z80
+	#cp include/vwf_textarea.h build/z80
 
 clean:
 	@echo Cleaning
