@@ -21,9 +21,11 @@ This library requires the latest [GBDK-2020 v.4.1.1](https://github.com/gbdk-202
    - Added -v flag for verbose output when your font didn't generate correctly and you aren't sure why
    - Added -r for reverse palette order. This is useful for when you realize that you've made a .png for your font with your color indexes in the opposite order than what png2font expects. Or when you'd like to create an inverted version of your font.
  - Textarea basic printing. Define an x,y coordinate and a width and height, specify a text segment to print, and register your vblank interrupt handler to make it print one character at a time.
-   - Manual linebreak ("\n") support
+   - Supports manual linebreaks ("\n" characters)
 
 ### Planned Features (in order of how likely I am to actually implement them):
+- Character wrapping
+- Word wrapping within a text area
 - Support for text advancement in a player controlled text area
     - You know, like a JRPG text box
 - GG and SMS support for textareas
@@ -40,7 +42,18 @@ This library requires the latest [GBDK-2020 v.4.1.1](https://github.com/gbdk-202
  - Animation of text scrolling up
 
 ## Installation
- `throw new DocumentationNotYetWrittenException();`
+ There are several ways to get the files for this library onto your computer:
+1) Download the latest release for your CPU (z80 or sm83) from the releases page
+2) Clone this repository and copy the files from the build/sm83 or build/z80 folder
+   * Note that at the time of this writing, the z80 port does not support textareas
+3) Download the library and .h files in the build/sm83 or build/z80 folder that is appropriate for your GBDK2020 project
+4) Add this project as a git submodule to your gbdk2020 project's git repository
+
+However you do it, once you have the files on your computer, you should have three header files and at least one .lib file.
+The header files vwf.h, vwf_common.h, and vwf_textarea.h should be referenced as needed in your IDE and in your Makefile or equivalent.
+* As a reminder, the option to include a folder with header files for lcc is: `<LCC_PATH> -I<FOLDER_PATH>`
+* And the option to include a library file is like this: `<LCC_PATH> -Wl-l<LIB_FILE_PATH>`
+* So, if I had my .h and .lib files in a folder named `vwf` at the same level as the Makefile, and the lcc executable was in a separate gbdk2020 folder one level up, then my lcc calls might look something like this: `../gbdk/bin/lcc -Ivwf -Wl-lvwf/vwf-textarea_full.lib`
 
 ## Screenshots
 
