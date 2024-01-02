@@ -87,10 +87,10 @@ lib: $(OBJS)
 	cp include/vwf.h build/sm83/
 	cp include/vwf_common.h build/sm83
 	cp include/vwf_textarea.h build/sm83
-	$(SDAR) -ru build/z80/vwf-textarea_full.lib obj/gb/vwf_a.o obj/gb/vwf.o #obj/gb/vwf_common_a.o obj/gb/vwf_textarea_a.o obj/gb/vwf_common.o obj/gb/vwf_textarea.o
+	$(SDAR) -ru build/z80/vwf-textarea_full.lib obj/gb/vwf_a.o obj/gb/vwf.o obj/gb/vwf_common_a.o obj/gb/vwf_textarea_a.o obj/gb/vwf_common.o obj/gb/vwf_textarea.o
 	cp include/vwf.h build/z80/
-	#cp include/vwf_common.h build/z80
-	#cp include/vwf_textarea.h build/z80
+	cp include/vwf_common.h build/z80
+	cp include/vwf_textarea.h build/z80
 
 clean:
 	@echo Cleaning

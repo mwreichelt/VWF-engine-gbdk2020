@@ -45,7 +45,7 @@ This library requires the latest [GBDK-2020 v.4.1.1](https://github.com/gbdk-202
  There are several ways to get the files for this library onto your computer:
 1) Download the latest release for your CPU (z80 or sm83) from the releases page
 2) Clone this repository and copy the files from the build/sm83 or build/z80 folder
-   * Note that at the time of this writing, the z80 port does not support textareas
+   * Note that at the time of this writing, the z80 port textareas exhibit strange behavior
 3) Download the library and .h files in the build/sm83 or build/z80 folder that is appropriate for your GBDK2020 project
 4) Add this project as a git submodule to your gbdk2020 project's git repository
 
@@ -54,6 +54,9 @@ The header files vwf.h, vwf_common.h, and vwf_textarea.h should be referenced as
 * As a reminder, the option to include a folder with header files for lcc is: `<LCC_PATH> -I<FOLDER_PATH>`
 * And the option to include a library file is like this: `<LCC_PATH> -Wl-l<LIB_FILE_PATH>`
 * So, if I had my .h and .lib files in a folder named `vwf` at the same level as the Makefile, and the lcc executable was in a separate gbdk2020 folder one level up, then my lcc calls might look something like this: `../gbdk/bin/lcc -Ivwf -Wl-lvwf/vwf-textarea_full.lib`
+
+## Changes from [untoxa/VWF](http://github.com/untoxa/VWF)
+* The vwf_load_font function no longer automatically activates that font for rendering.
 
 ## Screenshots
 
@@ -64,3 +67,7 @@ Screenshots from [untoxa/VWF](http://github.com/untoxa/VWF):
 ![GameGear](/gg.png)
 
 ![MasterSystem](/sms.png)
+
+## Current Version Warnings
+* The SMS and GG and Pocket builds are buggy when using textarea; though the tile data is written to VRAM correctly, the tilemap is not updated and instead the camera moves for some reason. My interest is not in the GG/SMS port of this library right now, so feel free to tell me what I'm doing wrong or submit a pull request. 
+* I am considering dropping z80 platform support for my fork for reasons listed above.

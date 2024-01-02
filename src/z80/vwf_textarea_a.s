@@ -1,20 +1,20 @@
         .include        "global.s"
 
-        .globl _vwf_current_rotate, _vwf_current_mask, _vwf_inverse_map, _vwf_tile_data, _vwf_inverse_map
+        .globl _vwf_textarea_current_rotate, _vwf_textarea_current_mask, _vwf_textarea_inverse_map, _vwf_textarea_tile_data, _vwf_textarea_inverse_map
 
         .ez80
 
         .area _DATA
-        
-__save: 
-        .ds 0x01 
+
+__save:
+        .ds 0x01
 
         .area _CODE
 
 
 
 ; void vwf_print_shift_char(void * dest, const void * src, UBYTE bank) Z88DK_CALLEE;
-_vwf_print_shift_char::
+_vwf_textarea_print_shift_char::
         ld  a, (.MAP_FRAME1)
         ld  (#__save), a
 
@@ -35,12 +35,12 @@ _vwf_print_shift_char::
 3$:
         ld a, (de)
         ld c, a
-        ld a, (_vwf_inverse_map)
+        ld a, (_vwf_textarea_inverse_map)
         xor c
         ld c, a
         inc de
-                
-        ld a, (_vwf_current_rotate)
+
+        ld a, (_vwf_textarea_current_rotate)
         sla a
         jr z, 1$
         jr c, 4$
@@ -70,7 +70,7 @@ _vwf_print_shift_char::
         dec a
         jr nz, 5$
 1$:
-        ld a, (_vwf_current_mask)
+        ld a, (_vwf_textarea_current_mask)
         and (hl)
         or c
         ld (hl), a
@@ -84,8 +84,8 @@ _vwf_print_shift_char::
 
         ret
 
-_vwf_get_win_addr::
-_vwf_get_bkg_addr::
+_vwf_textarea_get_win_addr::
+_vwf_textarea_get_bkg_addr::
         ld a, (_shadow_VDP_R2)
         rlca
         rlca
@@ -94,13 +94,13 @@ _vwf_get_bkg_addr::
         ld l, #0
         ret
 
-_vwf_swap_tiles::
-        ld      de, #_vwf_tile_data
-        ld      hl, #(_vwf_tile_data + 8)
+_vwf_textarea_swap_tiles::
+        ld      de, #_vwf_textarea_tile_data
+        ld      hl, #(_vwf_textarea_tile_data + 8)
         .rept 8
                 ldi
         .endm
-        ld      a, (_vwf_inverse_map)
+        ld      a, (_vwf_textarea_inverse_map)
         ld      (de), a
         ld      h, d
         ld      l, e

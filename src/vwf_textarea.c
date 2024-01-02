@@ -5,6 +5,22 @@
 #pragma bank 0
 
 #if defined(NINTENDO)
+void vwf_textarea_print_shift_char(void * dest, const void * src, uint8_t bank) OLDCALL;
+void vwf_memcpy(void* to, const void* from, size_t n, uint8_t bank) OLDCALL;
+uint8_t vwf_read_banked_ubyte(const void * src, uint8_t bank) OLDCALL __preserves_regs(b, c) ;
+uint8_t * vwf_get_win_addr(void) OLDCALL __preserves_regs(b, c, h, l) ;
+uint8_t * vwf_get_bkg_addr(void) OLDCALL __preserves_regs(b, c, h, l) ;
+void vwf_set_banked_data(uint8_t i, uint8_t l, const unsigned char* ptr, uint8_t bank) OLDCALL;
+void vwf_textarea_swap_tiles(void) OLDCALL;
+#elif defined(SEGA)
+void vwf_textarea_print_shift_char(void * dest, const void * src, uint8_t bank) Z88DK_CALLEE;
+void vwf_memcpy(void* to, const void* from, size_t n, uint8_t bank) Z88DK_CALLEE;
+uint8_t vwf_read_banked_ubyte(const void * src, uint8_t bank) Z88DK_CALLEE;
+uint8_t * vwf_get_win_addr(void) OLDCALL;
+uint8_t * vwf_get_bkg_addr(void) OLDCALL;
+void vwf_set_banked_data(uint8_t i, uint8_t l, const unsigned char* ptr, uint8_t bank) Z88DK_CALLEE;
+void vwf_textarea_swap_tiles(void) OLDCALL;
+#endif
 
 //For knowing how quickly to render characters
 uint8_t vwf_textarea_characters_per_tick;
@@ -16,6 +32,7 @@ uint8_t vwf_textarea_enabled;
 uint8_t vwf_textarea_current_rotate;
 uint8_t vwf_textarea_inverse_map;
 uint8_t vwf_textarea_tile_data[DEVICE_TILE_SIZE * 2];
+uint8_t vwf_textarea_default_tile = 0x00;
 
 //For knowing the size of our textarea
 uint8_t vwf_textarea_x;
@@ -59,13 +76,17 @@ uint8_t vwf_textarea_current_font_bank;
 uint8_t * vwf_textarea_screen_dest_ptr;
 
 void vwf_textarea_print_reset(uint8_t tile) {
-vwf_textarea_current_tile = tile;
-vwf_textarea_current_offset = 0;
-vwf_textarea_swap_tiles();
-vwf_textarea_swap_tiles();
+    vwf_textarea_current_tile = tile;
+    vwf_textarea_current_offset = 0;
+    vwf_textarea_swap_tiles();
+    vwf_textarea_swap_tiles();
 }
 
-void vwf_initialize_textarea(uint8_t xTile, uint8_t yTile, uint8_t width, uint8_t height, uint8_t vram_start_index) {
+void vwf_initialize_textarea(uint8_t xTile, uint8_t yTile, uint8_t width, uint8_t height, uint8_t vram_start_index, uint8_t vram_default_tile) {
+    //Init the paused flag.
+    vwf_textarea_textfill_paused = FALSE;
+
+    //Set the parameters of the textarea
     vwf_textarea_x = xTile;
     vwf_textarea_y = yTile;
     vwf_textarea_w = width;
@@ -78,17 +99,18 @@ void vwf_initialize_textarea(uint8_t xTile, uint8_t yTile, uint8_t width, uint8_
     vwf_textarea_vram_width = 0u;
     vwf_textarea_current_character_index = 0u;
 
-    // Init the paused flag.
-    vwf_textarea_textfill_paused = FALSE;
-
     //Initialize the vram tiles
     vwf_textarea_print_reset(vram_start_index);
+
+    //TODO: See if we can count character widths ahead of time to avoid needing the below bit
+    //Set the tile index to use if we need to erase a mistake in our rendering
+    vwf_textarea_default_tile = vram_default_tile;
 
     //TODO: I need to do something about the x and y variables here. Where do I get these from? Do I even need these in the textarea function?
     //This pointer is for tracking the place on the background/window map to render a character to
     vwf_textarea_screen_dest_ptr = vwf_textarea_render_base_address + (yTile + DEVICE_SCREEN_Y_OFFSET) * (DEVICE_SCREEN_BUFFER_WIDTH * DEVICE_SCREEN_MAP_ENTRY_SIZE) + ((xTile + DEVICE_SCREEN_X_OFFSET) * DEVICE_SCREEN_MAP_ENTRY_SIZE);
 
-    //TODO: Assign the bg tiles to the vram indexes
+    //TODO: Assign the bg tiles to the default vram indexes
     // Not sure I actually need to do this since it's taken care of during the vblank update function
 }
 
@@ -117,7 +139,7 @@ uint8_t vwf_textarea_render_char(uint8_t character) {
 
     //This operation creates a bitmask that will allow us to only update the pixels in the current vram tile
     // that were not written by the previous render.
-    // First the a full mask is shifted left by the number of columns that we are offsetting,
+    // First, a full mask is shifted left by the number of columns that we are offsetting,
     // then the mask is shifted right by the offset plus the width of the glyph to write.
     vwf_textarea_current_mask = (0xffu << dx) | (0xffu >> (vwf_textarea_current_offset + width));
 
@@ -174,6 +196,9 @@ void vwf_textarea_vblank_update() NONBANKED {
                     //Increment the current line that we're on
                     vwf_textarea_current_line += 1;
 
+                    //Revert the tilemap where we had been to the default tile
+                    set_vram_byte(vwf_textarea_screen_dest_ptr, vwf_textarea_default_tile);
+
                     //Recalculate the screen tile that we need to point to
                     vwf_textarea_screen_dest_ptr = vwf_textarea_render_base_address + ((vwf_textarea_y + vwf_textarea_current_line) + DEVICE_SCREEN_Y_OFFSET) * (DEVICE_SCREEN_BUFFER_WIDTH * DEVICE_SCREEN_MAP_ENTRY_SIZE) + ((vwf_textarea_x + DEVICE_SCREEN_X_OFFSET) * DEVICE_SCREEN_MAP_ENTRY_SIZE);
 
@@ -229,5 +254,3 @@ void vwf_textarea_activate_font(uint8_t index) {
     vwf_textarea_current_font_bank = vwf_fonts[index].bank;
     vwf_memcpy(&vwf_textarea_current_font_desc, vwf_fonts[index].ptr, sizeof(font_desc_t), vwf_textarea_current_font_bank);
 }
-
-#endif
