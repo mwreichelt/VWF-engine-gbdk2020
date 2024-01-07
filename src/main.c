@@ -6,8 +6,8 @@
 #include "vwf_font_bold.h"
 #include "vwf_font_ru.h"
 
-const vwf_text_segment_t segment_1 = { &segment_2, "This is a textarea.\nPress A to advance text!"};
-const vwf_text_segment_t segment_2 = { &segment_1, "Pretty neat!"};
+const vwf_text_segment_t segment_1 = { &segment_2, "This is a textarea.\nPress A to advance text!\0"};
+const vwf_text_segment_t segment_2 = { &segment_1, "Pretty neat!\0"};
 
 void main(void) {
     fill_bkg_rect(0, 0, DEVICE_SCREEN_WIDTH, DEVICE_SCREEN_HEIGHT, 0x00u);

@@ -92,6 +92,7 @@ void vwf_initialize_textarea(uint8_t xTile, uint8_t yTile, uint8_t width, uint8_
     vwf_textarea_w = width;
     vwf_textarea_h = height;
     vwf_textarea_current_line = 0;
+    vwf_textarea_start_tile = vram_start_index;
     vwf_textarea_current_tile = vram_start_index;
     vwf_textarea_vram_count = width * height;
     //TODO: add some sort of check to make sure that start index isn't too high?
@@ -101,10 +102,16 @@ void vwf_initialize_textarea(uint8_t xTile, uint8_t yTile, uint8_t width, uint8_
 
     //Initialize the vram tiles
     vwf_textarea_print_reset(vram_start_index);
+    for (uint8_t i = 0; i < vwf_textarea_vram_count; ++i) {
+        set_vram_byte(i + vwf_textarea_start_tile, 0x00);
+    }
 
-    //TODO: See if we can count character widths ahead of time to avoid needing the below bit
+    //TODO: Set the tilemap here for the textarea
     //Set the tile index to use if we need to erase a mistake in our rendering
     vwf_textarea_default_tile = vram_default_tile;
+
+    //Clear out the textarea with the default tile
+    set_bkg_tiles(vwf_textarea_x, vwf_textarea_y, vwf_textarea_w, vwf_textarea_h, (const uint8_t *)vwf_textarea_default_tile);
 
     //TODO: I need to do something about the x and y variables here. Where do I get these from? Do I even need these in the textarea function?
     //This pointer is for tracking the place on the background/window map to render a character to
@@ -172,6 +179,8 @@ uint8_t vwf_textarea_render_char(uint8_t character) {
 }
 
 void vwf_textarea_vblank_update() NONBANKED {
+    //TODO: Change this function to no longer change the tilemap
+    //TODO: This means that when we need to move a character to a newline we may need to remove something from vram
     uint8_t save_bank = _current_bank;
 
     //TODO: Determine if we need to draw a new character
@@ -235,11 +244,58 @@ void vwf_textarea_vblank_update() NONBANKED {
             }
 
             //TODO: Do we need to render more characters during this vblank?
-        } else {
+        } else if(joypad() & J_A) {
             //If we are in here, we are at a rest point and the user needs to hit the A button to unpause us
             //TODO: Do we need to change any sprites for the text box animation? Like a "Hit the button!" animation.
-            //TODO: If we are paused AND the next character is \0 (i.e. we are at the end of the text segment) then
-            //  spool the next text segment
+
+            //Load the next character to be rendered
+            vwf_textarea_next_character = vwf_read_banked_ubyte(
+                    vwf_textarea_current_segment->text + vwf_textarea_current_character_index,
+                    vwf_textarea_current_segment_bank
+            );
+
+            switch(vwf_textarea_next_character) {
+                case '\0':
+                    vwf_textarea_current_character_index = 0;
+
+                    //Do we have a next text segment?
+                    if (vwf_textarea_current_segment->next == NULL) {
+                        //Disable the textarea rendering.
+                        vwf_textarea_enabled = FALSE;
+                        vwf_textarea_current_segment = NULL;
+                    } else {
+                        //Set the next text segment as the current text segment and prepare for rendering it.
+                        vwf_textarea_current_segment = (vwf_text_segment_t *)vwf_textarea_current_segment->next;
+                    }
+                case '\n':
+                    //Initialize some textarea values for rendering
+                    vwf_textarea_current_line = 0;
+                    vwf_textarea_current_tile = vwf_textarea_start_tile;
+
+                    //Initialize the vram tiles
+                    vwf_textarea_print_reset(vwf_textarea_start_tile);
+                    vwf_textarea_current_tile = vwf_textarea_start_tile;
+                    for (uint8_t i = 0; i < vwf_textarea_vram_count; ++i) {
+                        set_vram_byte(i + vwf_textarea_start_tile, 0x00);
+                    }
+
+                    //Clear out the textarea with the default tile
+                    set_bkg_tiles(vwf_textarea_x, vwf_textarea_y, vwf_textarea_w, vwf_textarea_h, (const uint8_t *)vwf_textarea_default_tile);
+
+                    break;
+                default:
+                    //If we are in here, then there is still something left to print in this text segment
+                    // and we're not clearing the previous textarea renderings
+                    break;
+            }
+
+            //If we haven't been looking at a null character, then we need to consume the current character.
+            if (vwf_textarea_next_character != '\0') {
+                vwf_textarea_current_character_index++;
+            }
+
+            vwf_textarea_textfill_paused = FALSE;
+
             //TODO: Do we want to add an animation that has to complete before we go to the next text segment? Like of
             // the text all scrolling up out of frame?
         }
@@ -255,15 +311,15 @@ void vwf_textarea_activate_font(uint8_t index) {
     vwf_memcpy(&vwf_textarea_current_font_desc, vwf_fonts[index].ptr, sizeof(font_desc_t), vwf_textarea_current_font_bank);
 }
 
-
-uint8_t vwf_word_length(char * text_ptr) NONBANKED {
+uint8_t vwf_textarea_word_length(char * text_ptr) NONBANKED {
     //ASSERT: This function is in bank 0.
     //ASSERT: The bank is already switched to the correct bank for the text pointer.
-    // Iterate through the text_ptr until we find \0 or a " " character and return the length of the word in pixels
+
+    //Iterate through the text_ptr until we find \0 or a " " character and return the length of the word in pixels
     char * next_char = text_ptr;
     uint8_t length = 0;
 
-    while(*next_char != '\0' && *next_char != ' ') {
+    while(*next_char != '\0' && *next_char != ' ' && *next_char != '\n') {
         //TODO: Add special character processing
         //Translate the input parameter to the font glyph offset
         uint8_t letter = vwf_read_banked_ubyte(vwf_textarea_current_font_desc.recode_table + (*next_char & ((vwf_textarea_current_font_desc.attr & RECODE_7BIT) ? 0x7fu : 0xffu)), vwf_textarea_current_font_bank);
