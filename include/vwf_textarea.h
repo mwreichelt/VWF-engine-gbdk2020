@@ -1,4 +1,5 @@
 #include "vwf_common.h"
+#include <stdlib.h>
 
 #ifndef _VWF_TEXTAREA
 #define _VWF_TEXTAREA
@@ -72,5 +73,6 @@ void vwf_textarea_vblank_update() NONBANKED;
 void vwf_textarea_activate_font(uint8_t index);
 void vwf_textarea_swap_tiles() OLDCALL;
 void vwf_textarea_print_shift_char(void * dest, const void * src, uint8_t bank) OLDCALL;
+uint8_t vwf_word_length(char * text_ptr) NONBANKED;
 
 #endif

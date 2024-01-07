@@ -1,4 +1,5 @@
 #include "vwf_common.h"
+#include <stdlib.h>
 
 #ifndef _VWF_TEXTAREA
 #define _VWF_TEXTAREA
@@ -13,6 +14,7 @@ extern uint8_t vwf_textarea_enabled;
 extern uint8_t vwf_textarea_tile_data[DEVICE_TILE_SIZE * 2];
 extern uint8_t vwf_textarea_inverse_map;
 extern uint8_t vwf_textarea_current_rotate;
+extern uint8_t vwf_textarea_default_tile;
 
 //For knowing how quickly to render characters
 extern uint8_t vwf_textarea_characters_per_tick;
@@ -63,7 +65,7 @@ extern uint8_t * vwf_textarea_screen_dest_ptr;
 
 //Textarea function definitions
 void vwf_textarea_print_reset(uint8_t tile);
-void vwf_initialize_textarea(uint8_t xTile, uint8_t yTile, uint8_t width, uint8_t height, uint8_t vram_start_index);
+void vwf_initialize_textarea(uint8_t xTile, uint8_t yTile, uint8_t width, uint8_t height, uint8_t vram_start_index, uint8_t vram_default_tile);
 void vwf_textarea_set_text_segment(vwf_text_segment_t * first_text_segment_ptr, uint8_t text_segment_bank);
 void vwf_textarea_set_text_speed(uint8_t characters_per_tick, uint8_t animationticks_per_character_tick);
 uint8_t vwf_textarea_render_char(uint8_t character);
@@ -71,5 +73,6 @@ void vwf_textarea_vblank_update() NONBANKED;
 void vwf_textarea_activate_font(uint8_t index);
 void vwf_textarea_swap_tiles() OLDCALL;
 void vwf_textarea_print_shift_char(void * dest, const void * src, uint8_t bank) OLDCALL;
+uint8_t vwf_word_length(char * text_ptr) NONBANKED;
 
 #endif

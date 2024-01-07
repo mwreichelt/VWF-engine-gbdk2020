@@ -254,3 +254,29 @@ void vwf_textarea_activate_font(uint8_t index) {
     vwf_textarea_current_font_bank = vwf_fonts[index].bank;
     vwf_memcpy(&vwf_textarea_current_font_desc, vwf_fonts[index].ptr, sizeof(font_desc_t), vwf_textarea_current_font_bank);
 }
+
+
+uint8_t vwf_word_length(char * text_ptr) NONBANKED {
+    //ASSERT: This function is in bank 0.
+    //ASSERT: The bank is already switched to the correct bank for the text pointer.
+    // Iterate through the text_ptr until we find \0 or a " " character and return the length of the word in pixels
+    char * next_char = text_ptr;
+    uint8_t length = 0;
+
+    while(*next_char != '\0' && *next_char != ' ') {
+        //TODO: Add special character processing
+        //Translate the input parameter to the font glyph offset
+        uint8_t letter = vwf_read_banked_ubyte(vwf_textarea_current_font_desc.recode_table + (*next_char & ((vwf_textarea_current_font_desc.attr & RECODE_7BIT) ? 0x7fu : 0xffu)), vwf_textarea_current_font_bank);
+
+        //Get the width for the glyph we're going to render.
+        uint8_t width = vwf_read_banked_ubyte(vwf_textarea_current_font_desc.widths + letter, vwf_textarea_current_font_bank);
+
+        //Add the width of the letter to the length of the word
+        length += width;
+
+        //Advance the pointer to point at the next character
+        next_char++;
+    }
+
+    return length;
+}
