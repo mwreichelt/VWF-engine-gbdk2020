@@ -41,10 +41,10 @@ uint8_t vwf_textarea_w;
 uint8_t vwf_textarea_h;
 
 //For knowing the current tile in vram
-uint8_t vwf_textarea_start_tile;
-uint8_t vwf_textarea_ending_tile;
-uint8_t vwf_textarea_current_tile;
-uint8_t * vwf_textarea_render_base_address = VWF_DEFAULT_BASE_ADDRESS;
+uint8_t vwf_textarea_vram_start_tile;
+uint8_t vwf_textarea_vram_end_tile;
+uint8_t vwf_textarea_vram_current_tile;
+uint8_t * vwf_textarea_tilemap_base_address = VWF_DEFAULT_BASE_ADDRESS;
 uint8_t vwf_textarea_current_line;
 
 //For knowing the current width index of our vram tile
@@ -72,11 +72,11 @@ uint8_t vwf_textarea_next_character;
 font_desc_t vwf_textarea_current_font_desc;
 uint8_t vwf_textarea_current_font_bank;
 
-//For tracking where in VRAM we're writing bytes
-uint8_t * vwf_textarea_screen_dest_ptr;
+//For tracking where in the tilemap we are
+uint8_t * vwf_textarea_tilemap_ptr;
 
 void vwf_textarea_print_reset(uint8_t tile) {
-    vwf_textarea_current_tile = tile;
+    vwf_textarea_vram_current_tile = tile;
     vwf_textarea_current_offset = 0;
     vwf_textarea_swap_tiles();
     vwf_textarea_swap_tiles();
@@ -92,18 +92,18 @@ void vwf_initialize_textarea(uint8_t xTile, uint8_t yTile, uint8_t width, uint8_
     vwf_textarea_w = width;
     vwf_textarea_h = height;
     vwf_textarea_current_line = 0;
-    vwf_textarea_start_tile = vram_start_index;
-    vwf_textarea_current_tile = vram_start_index;
+    vwf_textarea_vram_start_tile = vram_start_index;
+    vwf_textarea_vram_current_tile = vram_start_index;
     vwf_textarea_vram_count = width * height;
     //TODO: add some sort of check to make sure that start index isn't too high?
-    vwf_textarea_ending_tile = vwf_textarea_vram_count + vram_start_index;
+    vwf_textarea_vram_end_tile = vwf_textarea_vram_count + vram_start_index;
     vwf_textarea_vram_width = 0u;
     vwf_textarea_current_character_index = 0u;
 
     //Initialize the vram tiles
     vwf_textarea_print_reset(vram_start_index);
     for (uint8_t i = 0; i < vwf_textarea_vram_count; ++i) {
-        set_vram_byte(i + vwf_textarea_start_tile, 0x00);
+        set_vram_byte((uint8_t *)(i + vwf_textarea_vram_start_tile), 0x00);
     }
 
     //TODO: Set the tilemap here for the textarea
@@ -115,7 +115,7 @@ void vwf_initialize_textarea(uint8_t xTile, uint8_t yTile, uint8_t width, uint8_
 
     //TODO: I need to do something about the x and y variables here. Where do I get these from? Do I even need these in the textarea function?
     //This pointer is for tracking the place on the background/window map to render a character to
-    vwf_textarea_screen_dest_ptr = vwf_textarea_render_base_address + (yTile + DEVICE_SCREEN_Y_OFFSET) * (DEVICE_SCREEN_BUFFER_WIDTH * DEVICE_SCREEN_MAP_ENTRY_SIZE) + ((xTile + DEVICE_SCREEN_X_OFFSET) * DEVICE_SCREEN_MAP_ENTRY_SIZE);
+    vwf_textarea_tilemap_ptr = vwf_textarea_tilemap_base_address + (yTile + DEVICE_SCREEN_Y_OFFSET) * (DEVICE_SCREEN_BUFFER_WIDTH * DEVICE_SCREEN_MAP_ENTRY_SIZE) + ((xTile + DEVICE_SCREEN_X_OFFSET) * DEVICE_SCREEN_MAP_ENTRY_SIZE);
 
     //TODO: Assign the bg tiles to the default vram indexes
     // Not sure I actually need to do this since it's taken care of during the vblank update function
@@ -165,16 +165,16 @@ uint8_t vwf_textarea_render_char(uint8_t character) {
         vwf_textarea_current_offset -= 8u;
 
         //Set the completed tile data
-        set_bkg_1bpp_data(vwf_textarea_current_tile, (vwf_textarea_current_offset) ? 2 : 1, vwf_textarea_tile_data);
+        set_bkg_1bpp_data(vwf_textarea_vram_current_tile, (vwf_textarea_current_offset) ? 2 : 1, vwf_textarea_tile_data);
 
         //Go to the next tile and initialize it
-        vwf_textarea_current_tile++;
+        vwf_textarea_vram_current_tile++;
         vwf_textarea_swap_tiles();
 
         //Return, signalling that we've crossed over into a new tile
         return TRUE;
     };
-    set_bkg_1bpp_data(vwf_textarea_current_tile, 1, vwf_textarea_tile_data);
+    set_bkg_1bpp_data(vwf_textarea_vram_current_tile, 1, vwf_textarea_tile_data);
     return FALSE;
 }
 
@@ -206,14 +206,14 @@ void vwf_textarea_vblank_update() NONBANKED {
                     vwf_textarea_current_line += 1;
 
                     //Revert the tilemap where we had been to the default tile
-                    set_vram_byte(vwf_textarea_screen_dest_ptr, vwf_textarea_default_tile);
+                    set_vram_byte(vwf_textarea_tilemap_ptr, vwf_textarea_default_tile);
 
                     //Recalculate the screen tile that we need to point to
-                    vwf_textarea_screen_dest_ptr = vwf_textarea_render_base_address + ((vwf_textarea_y + vwf_textarea_current_line) + DEVICE_SCREEN_Y_OFFSET) * (DEVICE_SCREEN_BUFFER_WIDTH * DEVICE_SCREEN_MAP_ENTRY_SIZE) + ((vwf_textarea_x + DEVICE_SCREEN_X_OFFSET) * DEVICE_SCREEN_MAP_ENTRY_SIZE);
+                    vwf_textarea_tilemap_ptr = vwf_textarea_tilemap_base_address + ((vwf_textarea_y + vwf_textarea_current_line) + DEVICE_SCREEN_Y_OFFSET) * (DEVICE_SCREEN_BUFFER_WIDTH * DEVICE_SCREEN_MAP_ENTRY_SIZE) + ((vwf_textarea_x + DEVICE_SCREEN_X_OFFSET) * DEVICE_SCREEN_MAP_ENTRY_SIZE);
 
                     //If our offset is not 0, we need to reset the current tile and offset for a new line.
                     if (vwf_textarea_current_offset > 1 && vwf_textarea_current_offset < 8) {
-                        vwf_textarea_print_reset(vwf_textarea_current_tile + 1);
+                        vwf_textarea_print_reset(vwf_textarea_vram_current_tile + 1);
                     }
 
                     //Consume the character so we can move along.
@@ -228,17 +228,17 @@ void vwf_textarea_vblank_update() NONBANKED {
                 if (vwf_textarea_render_char(vwf_textarea_next_character)) {
                     //We're in a new tile now, so we need to set the previous tile's address in the tile map so
                     // it appears on the screen
-                    set_vram_byte(vwf_textarea_screen_dest_ptr, vwf_textarea_current_tile - 1);
+                    set_vram_byte(vwf_textarea_tilemap_ptr, vwf_textarea_vram_current_tile - 1);
 
-                    //Then increment our vwf_textarea_screen_dest_ptr
-                    vwf_textarea_screen_dest_ptr += DEVICE_SCREEN_MAP_ENTRY_SIZE;
+                    //Then increment our vwf_textarea_tilemap_ptr
+                    vwf_textarea_tilemap_ptr += DEVICE_SCREEN_MAP_ENTRY_SIZE;
                 }
 
                 vwf_textarea_current_character_index += 1;
 
                 //Update the current vram tile data
                 if (vwf_textarea_current_offset) {
-                    set_vram_byte(vwf_textarea_screen_dest_ptr, vwf_textarea_current_tile);
+                    set_vram_byte(vwf_textarea_tilemap_ptr, vwf_textarea_vram_current_tile);
                 }
                 break;
             }
@@ -268,20 +268,20 @@ void vwf_textarea_vblank_update() NONBANKED {
                         vwf_textarea_current_segment = (vwf_text_segment_t *)vwf_textarea_current_segment->next;
                     }
                 case '\n':
-                    //Initialize some textarea values for rendering
-                    vwf_textarea_current_line = 0;
-                    vwf_textarea_current_tile = vwf_textarea_start_tile;
-
                     //Initialize the vram tiles
-                    vwf_textarea_print_reset(vwf_textarea_start_tile);
-                    vwf_textarea_current_tile = vwf_textarea_start_tile;
+                    vwf_textarea_current_line = 0;
+                    vwf_textarea_print_reset(vwf_textarea_vram_start_tile);
+                    vwf_textarea_vram_current_tile = vwf_textarea_vram_start_tile;
                     for (uint8_t i = 0; i < vwf_textarea_vram_count; ++i) {
-                        set_vram_byte(i + vwf_textarea_start_tile, 0x00);
+                        set_vram_byte((uint8_t *)(i + vwf_textarea_vram_start_tile), 0x00);
                     }
 
                     //Clear out the textarea with the default tile
                     set_bkg_tiles(vwf_textarea_x, vwf_textarea_y, vwf_textarea_w, vwf_textarea_h, (const uint8_t *)vwf_textarea_default_tile);
 
+                    //Reset the tilemap pointer to the first tile we need to draw on
+                    vwf_textarea_tilemap_ptr = vwf_textarea_tilemap_base_address + (vwf_textarea_y + DEVICE_SCREEN_Y_OFFSET) * (DEVICE_SCREEN_BUFFER_WIDTH * DEVICE_SCREEN_MAP_ENTRY_SIZE) + ((vwf_textarea_x + DEVICE_SCREEN_X_OFFSET) * DEVICE_SCREEN_MAP_ENTRY_SIZE);
+                    
                     break;
                 default:
                     //If we are in here, then there is still something left to print in this text segment

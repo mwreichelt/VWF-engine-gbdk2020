@@ -27,13 +27,13 @@ extern uint8_t vwf_textarea_x;
 extern uint8_t vwf_textarea_y;
 extern uint8_t vwf_textarea_w;
 extern uint8_t vwf_textarea_h;
+extern uint8_t vwf_textarea_current_line;
 
 //For knowing the current tile in vram
-extern uint8_t vwf_textarea_start_tile;
-extern uint8_t vwf_textarea_ending_tile;
-extern uint8_t vwf_textarea_current_tile;
-extern uint8_t * vwf_textarea_render_base_address;
-extern uint8_t vwf_textarea_current_line;
+extern uint8_t vwf_textarea_vram_start_tile;
+extern uint8_t vwf_textarea_vram_end_tile;
+extern uint8_t vwf_textarea_vram_current_tile;
+extern uint8_t * vwf_textarea_tilemap_base_address;
 
 //For knowing the current width index of our vram tile
 extern uint8_t vwf_textarea_vram_width;
@@ -60,8 +60,8 @@ extern uint8_t vwf_textarea_next_character;
 extern font_desc_t vwf_textarea_current_font_desc;
 extern uint8_t vwf_textarea_current_font_bank;
 
-//For tracking where in VRAM we're writing bytes
-extern uint8_t * vwf_textarea_screen_dest_ptr;
+//For tracking where in the tilemap we are
+extern uint8_t * vwf_textarea_tilemap_ptr;
 
 //Textarea function definitions
 void vwf_textarea_print_reset(uint8_t tile);
