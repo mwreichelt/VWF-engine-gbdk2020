@@ -46,6 +46,7 @@ uint8_t vwf_textarea_vram_end_tile;
 uint8_t vwf_textarea_vram_current_tile;
 uint8_t * vwf_textarea_tilemap_base_address = VWF_DEFAULT_BASE_ADDRESS;
 uint8_t vwf_textarea_current_line;
+uint8_t vwf_textarea_current_x_pos;
 
 //For knowing the current width index of our vram tile
 uint8_t vwf_textarea_vram_width;
@@ -75,6 +76,9 @@ uint8_t vwf_textarea_current_font_bank;
 //For tracking where in the tilemap we are
 uint8_t * vwf_textarea_tilemap_ptr;
 
+//For forcing a newline action
+uint8_t vwf_textarea_force_newline = FALSE;
+
 void vwf_textarea_print_reset(uint8_t tile) {
     vwf_textarea_vram_current_tile = tile;
     vwf_textarea_current_offset = 0;
@@ -92,6 +96,7 @@ void vwf_initialize_textarea(uint8_t xTile, uint8_t yTile, uint8_t width, uint8_
     vwf_textarea_w = width;
     vwf_textarea_h = height;
     vwf_textarea_current_line = 0;
+    vwf_textarea_current_x_pos = 0;
     vwf_textarea_vram_start_tile = vram_start_index;
     vwf_textarea_vram_current_tile = vram_start_index;
     vwf_textarea_vram_count = width * height;
@@ -99,6 +104,7 @@ void vwf_initialize_textarea(uint8_t xTile, uint8_t yTile, uint8_t width, uint8_
     vwf_textarea_vram_end_tile = vwf_textarea_vram_count + vram_start_index;
     vwf_textarea_vram_width = 0u;
     vwf_textarea_current_character_index = 0u;
+    vwf_textarea_force_newline = FALSE;
 
     //Initialize the vram tiles
     vwf_textarea_print_reset(vram_start_index);
@@ -205,6 +211,9 @@ void vwf_textarea_vblank_update() NONBANKED {
                     //Increment the current line that we're on
                     vwf_textarea_current_line += 1;
 
+                    //Reset our x position
+                    vwf_textarea_current_x_pos = 0;
+
                     //Revert the tilemap where we had been to the default tile
                     set_vram_byte(vwf_textarea_tilemap_ptr, vwf_textarea_default_tile);
 
@@ -232,6 +241,13 @@ void vwf_textarea_vblank_update() NONBANKED {
 
                     //Then increment our vwf_textarea_tilemap_ptr
                     vwf_textarea_tilemap_ptr += DEVICE_SCREEN_MAP_ENTRY_SIZE;
+                    vwf_textarea_current_x_pos += 1;
+
+                    if (vwf_textarea_current_x_pos > vwf_textarea_w) {
+                        //If I detect that I've gone past the bounds of the textarea, I'll change the tilemap for the tile at 0x00
+                        vwf_textarea_textfill_paused = TRUE;
+                        vwf_textarea_force_newline = TRUE;
+                    }
                 }
 
                 vwf_textarea_current_character_index += 1;
@@ -244,7 +260,7 @@ void vwf_textarea_vblank_update() NONBANKED {
             }
 
             //TODO: Do we need to render more characters during this vblank?
-        } else if(joypad() & J_A) {
+        } else if(vwf_textarea_textfill_advance) {
             //If we are in here, we are at a rest point and the user needs to hit the A button to unpause us
             //TODO: Do we need to change any sprites for the text box animation? Like a "Hit the button!" animation.
 
@@ -253,6 +269,17 @@ void vwf_textarea_vblank_update() NONBANKED {
                     vwf_textarea_current_segment->text + vwf_textarea_current_character_index,
                     vwf_textarea_current_segment_bank
             );
+
+            if (vwf_textarea_force_newline) {
+                //If we're forcing a newline, say in the middle of a word, we're going to lie about the next character
+                // being a \n and then decrement the character counter
+                if(vwf_textarea_next_character != '\n') {
+                    //Unless, of course, if the next character is a \n anyways.
+                    vwf_textarea_current_character_index -= 1;
+                    vwf_textarea_next_character = '\n';
+                }
+                vwf_textarea_force_newline = FALSE;
+            }
 
             switch(vwf_textarea_next_character) {
                 case '\0':
@@ -270,6 +297,7 @@ void vwf_textarea_vblank_update() NONBANKED {
                 case '\n':
                     //Initialize the vram tiles
                     vwf_textarea_current_line = 0;
+                    vwf_textarea_current_x_pos = 0;
                     vwf_textarea_print_reset(vwf_textarea_vram_start_tile);
                     vwf_textarea_vram_current_tile = vwf_textarea_vram_start_tile;
                     for (uint8_t i = 0; i < vwf_textarea_vram_count; ++i) {
