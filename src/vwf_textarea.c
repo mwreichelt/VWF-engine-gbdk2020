@@ -76,8 +76,15 @@ uint8_t vwf_textarea_current_font_bank;
 //For tracking where in the tilemap we are
 uint8_t * vwf_textarea_tilemap_ptr;
 
+//TODO: The below are flags that can be combined into a bit array
+//For tracking if we've already calculated this word's length
+uint8_t vwf_textarea_need_word_length_calc = TRUE;
+
 //For forcing a newline action
 uint8_t vwf_textarea_force_newline = FALSE;
+
+//For knowing when to advance text (setable in game code)
+uint8_t vwf_textarea_textfill_advance = FALSE;
 
 void vwf_textarea_print_reset(uint8_t tile) {
     vwf_textarea_vram_current_tile = tile;
@@ -179,7 +186,7 @@ uint8_t vwf_textarea_render_char(uint8_t character) {
 
         //Return, signalling that we've crossed over into a new tile
         return TRUE;
-    };
+    }
     set_bkg_1bpp_data(vwf_textarea_vram_current_tile, 1, vwf_textarea_tile_data);
     return FALSE;
 }
@@ -204,62 +211,86 @@ void vwf_textarea_vblank_update() NONBANKED {
                 vwf_textarea_current_segment_bank
             );
 
-            //Render the new character
-            switch (vwf_textarea_next_character) {
-                //TODO: Add support for control codes
-                case '\n':
-                    //Increment the current line that we're on
-                    vwf_textarea_current_line += 1;
+            //Check word length if needed
+            if(vwf_textarea_need_word_length_calc) {
+                //Reset our flag
+                vwf_textarea_need_word_length_calc = FALSE;
 
-                    //Reset our x position
-                    vwf_textarea_current_x_pos = 0;
-
-                    //Revert the tilemap where we had been to the default tile
-                    set_vram_byte(vwf_textarea_tilemap_ptr, vwf_textarea_default_tile);
-
-                    //Recalculate the screen tile that we need to point to
-                    vwf_textarea_tilemap_ptr = vwf_textarea_tilemap_base_address + ((vwf_textarea_y + vwf_textarea_current_line) + DEVICE_SCREEN_Y_OFFSET) * (DEVICE_SCREEN_BUFFER_WIDTH * DEVICE_SCREEN_MAP_ENTRY_SIZE) + ((vwf_textarea_x + DEVICE_SCREEN_X_OFFSET) * DEVICE_SCREEN_MAP_ENTRY_SIZE);
-
-                    //If our offset is not 0, we need to reset the current tile and offset for a new line.
-                    if (vwf_textarea_current_offset > 1 && vwf_textarea_current_offset < 8) {
-                        vwf_textarea_print_reset(vwf_textarea_vram_current_tile + 1);
-                    }
-
-                    //Consume the character so we can move along.
-                    vwf_textarea_current_character_index += 1;
-                    break;
-                case '\0':
-                    //If we hit the end of a text segment, pause the textfill until the user hits the button to advance.
-                    vwf_textarea_textfill_paused = TRUE;
-                    break;
-                default:
-                //Render the character and return true iff we cross into a new tile in vram
-                if (vwf_textarea_render_char(vwf_textarea_next_character)) {
-                    //We're in a new tile now, so we need to set the previous tile's address in the tile map so
-                    // it appears on the screen
-                    set_vram_byte(vwf_textarea_tilemap_ptr, vwf_textarea_vram_current_tile - 1);
-
-                    //Then increment our vwf_textarea_tilemap_ptr
-                    vwf_textarea_tilemap_ptr += DEVICE_SCREEN_MAP_ENTRY_SIZE;
-                    vwf_textarea_current_x_pos += 1;
-
-                    if (vwf_textarea_current_x_pos > vwf_textarea_w) {
-                        //If I detect that I've gone past the bounds of the textarea, I'll change the tilemap for the tile at 0x00
-                        vwf_textarea_textfill_paused = TRUE;
+                //If the next word is going to be too long for this textarea, then force a pause
+                //vwf_textarea_word_length is a safe call to make because we have already switched into the text segment's bank above
+                if(
+                    vwf_textarea_word_length((uint8_t *)(vwf_textarea_current_segment->text + vwf_textarea_current_character_index)) >=
+                    (vwf_textarea_current_x_pos >= vwf_textarea_w ? 0 : (vwf_textarea_w - vwf_textarea_current_x_pos) * DEVICE_TILE_SIZE + (DEVICE_TILE_SIZE - vwf_textarea_current_offset))
+                ) {
+                    if(vwf_textarea_current_line < vwf_textarea_h) {
+                        //If we have more lines, then force a newline.
                         vwf_textarea_force_newline = TRUE;
+                        vwf_textarea_textfill_paused = TRUE;
+                    } else {
+                        //If we are at our textarea limit, then pause.
+                        vwf_textarea_textfill_paused = TRUE;
                     }
                 }
-
-                vwf_textarea_current_character_index += 1;
-
-                //Update the current vram tile data
-                if (vwf_textarea_current_offset) {
-                    set_vram_byte(vwf_textarea_tilemap_ptr, vwf_textarea_vram_current_tile);
+            } else {
+                //If we are at a word break character, then we need to calc the length of the next word on the next trip through this function
+                if(vwf_textarea_is_word_break_char((char)vwf_textarea_next_character)) {
+                    vwf_textarea_need_word_length_calc = TRUE;
                 }
-                break;
-            }
+
+                //Render the new character
+                switch (vwf_textarea_next_character) {
+                    //TODO: Add support for control codes
+                    case '\n':
+                        //Increment the current line that we're on
+                        vwf_textarea_current_line += 1;
+
+                        //Reset our x position
+                        vwf_textarea_current_x_pos = 0;
+
+                        //Revert the tilemap where we had been to the default tile
+                        set_vram_byte(vwf_textarea_tilemap_ptr, vwf_textarea_default_tile);
+
+                        //Recalculate the screen tile that we need to point to
+                        vwf_textarea_tilemap_ptr = vwf_textarea_tilemap_base_address +
+                                                   ((vwf_textarea_y + vwf_textarea_current_line) + DEVICE_SCREEN_Y_OFFSET) *
+                                                   (DEVICE_SCREEN_BUFFER_WIDTH * DEVICE_SCREEN_MAP_ENTRY_SIZE) +
+                                                   ((vwf_textarea_x + DEVICE_SCREEN_X_OFFSET) * DEVICE_SCREEN_MAP_ENTRY_SIZE);
+
+                        //If our offset is not 0, we need to reset the current tile and offset for a new line.
+                        if (vwf_textarea_current_offset > 1 && vwf_textarea_current_offset < 8) {
+                            vwf_textarea_print_reset(vwf_textarea_vram_current_tile + 1);
+                        }
+
+                        //Consume the character so we can move along.
+                        vwf_textarea_current_character_index += 1;
+                        break;
+                    case '\0':
+                        //If we hit the end of a text segment, pause the textfill until the user hits the button to advance.
+                        vwf_textarea_textfill_paused = TRUE;
+                        break;
+                    default:
+                        //Render the character and return true iff we cross into a new tile in vram
+                        if (vwf_textarea_render_char(vwf_textarea_next_character)) {
+                            //We're in a new tile now, so we need to set the previous tile's address in the tile map so
+                            // it appears on the screen
+                            set_vram_byte(vwf_textarea_tilemap_ptr, vwf_textarea_vram_current_tile - 1);
+
+                            //Then increment our vwf_textarea_tilemap_ptr
+                            vwf_textarea_tilemap_ptr += DEVICE_SCREEN_MAP_ENTRY_SIZE;
+                            vwf_textarea_current_x_pos += 1;
+                        }
+
+                        vwf_textarea_current_character_index += 1;
+
+                        //Update the current vram tile data
+                        if (vwf_textarea_current_offset) {
+                            set_vram_byte(vwf_textarea_tilemap_ptr, vwf_textarea_vram_current_tile);
+                        }
+                        break;
+                }
 
             //TODO: Do we need to render more characters during this vblank?
+            }
         } else if(vwf_textarea_textfill_advance) {
             //If we are in here, we are at a rest point and the user needs to hit the A button to unpause us
             //TODO: Do we need to change any sprites for the text box animation? Like a "Hit the button!" animation.
@@ -317,12 +348,14 @@ void vwf_textarea_vblank_update() NONBANKED {
                     break;
             }
 
-            //If we haven't been looking at a null character, then we need to consume the current character.
+            //If we haven't been looking at a null character, then we need to consume the current character
             if (vwf_textarea_next_character != '\0') {
                 vwf_textarea_current_character_index++;
             }
 
+            //Clear our flags
             vwf_textarea_textfill_paused = FALSE;
+            vwf_textarea_textfill_advance = FALSE;
 
             //TODO: Do we want to add an animation that has to complete before we go to the next text segment? Like of
             // the text all scrolling up out of frame?
@@ -330,7 +363,7 @@ void vwf_textarea_vblank_update() NONBANKED {
     }
 
 
-    //TODO: Swap back to the original bank
+    //Swap back to the original bank
     SWITCH_ROM(save_bank);
 }
 
@@ -347,7 +380,7 @@ uint8_t vwf_textarea_word_length(char * text_ptr) NONBANKED {
     char * next_char = text_ptr;
     uint8_t length = 0;
 
-    while(*next_char != '\0' && *next_char != ' ' && *next_char != '\n') {
+    while(!vwf_textarea_is_word_break_char(*next_char)) {
         //TODO: Add special character processing
         //Translate the input parameter to the font glyph offset
         uint8_t letter = vwf_read_banked_ubyte(vwf_textarea_current_font_desc.recode_table + (*next_char & ((vwf_textarea_current_font_desc.attr & RECODE_7BIT) ? 0x7fu : 0xffu)), vwf_textarea_current_font_bank);
@@ -363,4 +396,13 @@ uint8_t vwf_textarea_word_length(char * text_ptr) NONBANKED {
     }
 
     return length;
+}
+
+uint8_t vwf_textarea_is_word_break_char(char character) NONBANKED {
+    //If the next character is one of the accepted word break characters, return TRUE. Else, return FALSE.
+    if(character == '\0' || character == ' ' || character == '\n' || character == '-' || character == '/') {
+        //TODO: Add any special character processing
+        return TRUE;
+    }
+    return FALSE;
 }

@@ -7,7 +7,10 @@
 #include "vwf_font_ru.h"
 
 const vwf_text_segment_t segment_1 = { &segment_2, "This is a textarea.\nPress A to advance text!\0"};
-const vwf_text_segment_t segment_2 = { &segment_1, "Pretty neat!\0"};
+const vwf_text_segment_t segment_2 = { &segment_3, "Pretty neat!\0"};
+const vwf_text_segment_t segment_3 = { &segment_1, "This is a really long piece of text without any sort of breaks or manual newlines. I think that most of the time I'll probably write text like this so I want to make sure it works. Also I want to test the length. Supercalifragilisticexpialudoucious."};
+
+unsigned char ITOA_STRING[4];
 
 void main(void) {
     fill_bkg_rect(0, 0, DEVICE_SCREEN_WIDTH, DEVICE_SCREEN_HEIGHT, 0x00u);
@@ -38,16 +41,48 @@ void main(void) {
         wait_vbl_done();
     }
 
+    //Time to setup the textarea for rendering.
+
+    //This is where we register the textarea vblank interrupt handler. This handler is what does the rendering of the
+    // text when the device's vblank interrupt occurs.
     add_VBL(vwf_textarea_vblank_update);
 
-    //Render a message in a textarea
+    // First, we need to activate a font.
+    // Second, we need to initialize the textarea by telling the library the position and dimensions of the textarea.
+    //  Then, we tell the library what memory address in VRAM to start rendering. The library will use consecutive
+    //   blocks of VRAM memory to render text.
+    //  Finally, we tell it what VRAM tile we would like it to use to render the background of the textarea.
+    //  I would recommend making this a "blank" tile as patterned tiles are untested (but potentially cool).
     vwf_textarea_activate_font(0u);
     vwf_initialize_textarea(1u, 1u, 10u, 2u, 0x82, 0x00);
 
-    //Set next text segment
-    vwf_textarea_current_segment = (vwf_text_segment_t * ) & segment_1;
+    //Set next text segment for the textarea to render. We need to load the pointer to the correct text segment and
+    // specify what bank that data lives in. If you have a 32kb game with MBC0 then bank will always be 0.
+    vwf_textarea_current_segment = (vwf_text_segment_t *) &segment_1;
     vwf_textarea_current_segment_bank = 0;
+
+    //With the setup done, we toggle this flag on to enable the textarea and let it know it's okay to start rendering.
+    //Until this all the above setup is done, the textarea engine cannot render anything!
     vwf_textarea_enabled = TRUE;
+
+    //What follows is a mock game loop, meant to respond to user input for the textarea.
+    uint8_t prev_joypad = 0;
+    uint8_t curr_joypad = 0;
+    while(1) {
+        prev_joypad = curr_joypad;
+        curr_joypad = joypad();
+
+        //In this example code, we're going to use the A button being pressed as our signal to the library to advance
+        // the text when it's been paused.
+        //We'll just look at the textarea paused flag and check that the button has been depressed this frame and not
+        // on the previous frame, but in your project, you may want to do something more sophisticated.
+        //Only you can know when it's safe and appropriate to advance the textarea rendering to the next bit of text!
+        if(vwf_textarea_textfill_paused && (curr_joypad & J_A) && !(prev_joypad & J_A)) {
+            vwf_textarea_textfill_advance = TRUE;
+        }
+
+        wait_vbl_done();
+    }
 
 #endif
 }
