@@ -8,7 +8,8 @@
 
 const vwf_text_segment_t segment_1 = { &segment_2, "This is a textarea.\nPress A to advance text!\0"};
 const vwf_text_segment_t segment_2 = { &segment_3, "Pretty neat!\0"};
-const vwf_text_segment_t segment_3 = { &segment_1, "This is a really long piece of text without any sort of breaks or manual newlines. I think that most of the time I'll probably write text like this so I want to make sure it works. Also I want to test the length. Supercalifragilisticexpialudoucious."};
+const vwf_text_segment_t segment_3 = { &segment_1, "The peasants had !l!i!t!t!l!e! !m!o!n!e!y. And the nobles something something.\0"};
+//const vwf_text_segment_t segment_3 = { &segment_1, "This is a really long piece of text without any sort of breaks or manual newlines. I think that most of the time I'll probably write text like this so I want to make sure it works. Also I want to test the length. Supercalifragilisticexpialudoucious."};
 
 unsigned char ITOA_STRING[4];
 

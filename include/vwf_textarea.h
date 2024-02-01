@@ -70,6 +70,11 @@ extern uint8_t vwf_textarea_need_word_length_calc;
 //For knowing when to advance text (setable in game code)
 extern uint8_t vwf_textarea_textfill_advance;
 
+//For handling control code character render delays
+extern uint8_t vwf_textarea_char_delay;
+extern uint8_t vwf_textarea_delay_frame_target;
+extern uint8_t vwf_textarea_delay_frame_current;
+
 //Textarea function definitions
 void vwf_textarea_print_reset(uint8_t tile);
 void vwf_initialize_textarea(uint8_t xTile, uint8_t yTile, uint8_t width, uint8_t height, uint8_t vram_start_index, uint8_t vram_default_tile);
@@ -82,5 +87,6 @@ void vwf_textarea_swap_tiles() OLDCALL;
 void vwf_textarea_print_shift_char(void * dest, const void * src, uint8_t bank) OLDCALL;
 uint8_t vwf_textarea_word_length(char * text_ptr) NONBANKED;
 uint8_t vwf_textarea_is_word_break_char(char character) NONBANKED;
+uint8_t  vwf_textarea_is_control_code_char(char character) NONBANKED;
 
 #endif

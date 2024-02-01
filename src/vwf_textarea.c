@@ -86,6 +86,11 @@ uint8_t vwf_textarea_force_newline = FALSE;
 //For knowing when to advance text (setable in game code)
 uint8_t vwf_textarea_textfill_advance = FALSE;
 
+//For handling control code character render delays
+uint8_t vwf_textarea_char_delay = FALSE;
+uint8_t vwf_textarea_delay_frame_target;
+uint8_t vwf_textarea_delay_frame_current;
+
 void vwf_textarea_print_reset(uint8_t tile) {
     vwf_textarea_vram_current_tile = tile;
     vwf_textarea_current_offset = 0;
@@ -201,6 +206,16 @@ void vwf_textarea_vblank_update() NONBANKED {
         // Check if the textfill is paused
         if (vwf_textarea_textfill_paused == FALSE) {
 
+            if(vwf_textarea_char_delay == TRUE) {
+                if(vwf_textarea_delay_frame_target > vwf_textarea_delay_frame_current) {
+                    vwf_textarea_delay_frame_current++;
+                    return; //Early out; if we're still delaying, don't process anything further.
+                } else {
+                    vwf_textarea_char_delay = FALSE;
+                    //We're finished delaying. We can move on to the next character now.
+                }
+            }
+
             //Swap to the correct bank
             //TODO: Process characters in the current segment until we have reached a renderable character
             SWITCH_ROM(vwf_textarea_current_segment_bank);
@@ -231,7 +246,7 @@ void vwf_textarea_vblank_update() NONBANKED {
                         vwf_textarea_textfill_paused = TRUE;
                     }
                 }
-            } else {
+            } else { //Else, let's render/process our next character.
                 //If we are at a word break character, then we need to calc the length of the next word on the next trip through this function
                 if(vwf_textarea_is_word_break_char((char)vwf_textarea_next_character)) {
                     vwf_textarea_need_word_length_calc = TRUE;
@@ -267,6 +282,24 @@ void vwf_textarea_vblank_update() NONBANKED {
                     case '\0':
                         //If we hit the end of a text segment, pause the textfill until the user hits the button to advance.
                         vwf_textarea_textfill_paused = TRUE;
+                        break;
+                    case '\1':
+                        //This is a control character for delaying a number of frames before the next character
+                        // is rendered.
+                        vwf_textarea_char_delay = TRUE;
+
+                        //The character after this one is a uint8_t value for how many frames to wait before rendering
+                        // the next character.
+                        vwf_textarea_current_character_index++;
+                        vwf_textarea_delay_frame_target = vwf_read_banked_ubyte(
+                                vwf_textarea_current_segment->text + vwf_textarea_current_character_index,
+                                vwf_textarea_current_segment_bank
+                        );
+
+                        //After reading our delay value, we need to advance the text pointer, because otherwise we'll
+                        // render the delay value as a character.
+                        vwf_textarea_current_character_index++;
+                        vwf_textarea_delay_frame_current = 0;
                         break;
                     default:
                         //Render the character and return true iff we cross into a new tile in vram
@@ -379,17 +412,23 @@ uint8_t vwf_textarea_word_length(char * text_ptr) NONBANKED {
     //Iterate through the text_ptr until we find \0 or a " " character and return the length of the word in pixels
     char * next_char = text_ptr;
     uint8_t length = 0;
+    uint8_t param_count = 0;
 
     while(!vwf_textarea_is_word_break_char(*next_char)) {
-        //TODO: Add special character processing
-        //Translate the input parameter to the font glyph offset
-        uint8_t letter = vwf_read_banked_ubyte(vwf_textarea_current_font_desc.recode_table + (*next_char & ((vwf_textarea_current_font_desc.attr & RECODE_7BIT) ? 0x7fu : 0xffu)), vwf_textarea_current_font_bank);
+        param_count = vwf_textarea_is_control_code_char(*next_char);
+        if(param_count > 0) {
+            //There was a special character
+            next_char += param_count;
+        } else {
+            //Translate the input parameter to the font glyph offset
+            uint8_t letter = vwf_read_banked_ubyte(vwf_textarea_current_font_desc.recode_table + (*next_char & ((vwf_textarea_current_font_desc.attr & RECODE_7BIT) ? 0x7fu : 0xffu)), vwf_textarea_current_font_bank);
 
-        //Get the width for the glyph we're going to render.
-        uint8_t width = vwf_read_banked_ubyte(vwf_textarea_current_font_desc.widths + letter, vwf_textarea_current_font_bank);
+            //Get the width for the glyph we're going to render.
+            uint8_t width = vwf_read_banked_ubyte(vwf_textarea_current_font_desc.widths + letter, vwf_textarea_current_font_bank);
 
-        //Add the width of the letter to the length of the word
-        length += width;
+            //Add the width of the letter to the length of the word
+            length += width;
+        }
 
         //Advance the pointer to point at the next character
         next_char++;
@@ -401,8 +440,20 @@ uint8_t vwf_textarea_word_length(char * text_ptr) NONBANKED {
 uint8_t vwf_textarea_is_word_break_char(char character) NONBANKED {
     //If the next character is one of the accepted word break characters, return TRUE. Else, return FALSE.
     if(character == '\0' || character == ' ' || character == '\n' || character == '-' || character == '/') {
-        //TODO: Add any special character processing
         return TRUE;
     }
     return FALSE;
+}
+
+uint8_t  vwf_textarea_is_control_code_char(char character) NONBANKED {
+    //If the character is a control code, then advance the next character count to their final parameter and return
+    // true. Otherwise, return false.
+    switch (character) {
+        case '\1':
+            return 1; //This is the number of param chars that this control code has.
+            break;
+        default:
+            return FALSE;
+    }
+    return TRUE;
 }
