@@ -1,4 +1,6 @@
 #include <gbdk/platform.h>
+#include <stdlib.h>
+#include <string.h>
 
 #include "vwf.h"
 #include "vwf_textarea.h"
@@ -7,11 +9,18 @@
 #include "vwf_font_ru.h"
 
 const vwf_text_segment_t segment_1 = { &segment_2, "This is a textarea.\nPress A to advance text!\0"};
+//const vwf_text_segment_t segment_1 = { &segment_2, "without any sort of merit or plan.\0"};
 const vwf_text_segment_t segment_2 = { &segment_3, "Pretty neat!\0"};
-const vwf_text_segment_t segment_3 = { &segment_1, "The peasants had !l!i!t!t!l!e! !m!o!n!e!y. And the nobles something something.\0"};
+const vwf_text_segment_t segment_3 = { &segment_1, "They had !l!i!t!t!l!e! !m!o!n!e!y.\0"};
 //const vwf_text_segment_t segment_3 = { &segment_1, "This is a really long piece of text without any sort of breaks or manual newlines. I think that most of the time I'll probably write text like this so I want to make sure it works. Also I want to test the length. Supercalifragilisticexpialudoucious."};
 
+
+//This is for debug purposes. I'm tired of rewriting it so I'm leaving it in this time.
 unsigned char ITOA_STRING[4];
+void writeDebugInt(uint8_t x,uint8_t y, uint8_t value, uint8_t vram_addr) {
+    uitoa(value, (char *)ITOA_STRING, 10);
+    vwf_draw_text(x, y, vram_addr, ITOA_STRING);
+}
 
 void main(void) {
     fill_bkg_rect(0, 0, DEVICE_SCREEN_WIDTH, DEVICE_SCREEN_HEIGHT, 0x00u);
@@ -87,4 +96,3 @@ void main(void) {
 
 #endif
 }
-

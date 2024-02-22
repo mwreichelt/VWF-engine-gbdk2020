@@ -235,7 +235,7 @@ void vwf_textarea_vblank_update() NONBANKED {
                 //vwf_textarea_word_length is a safe call to make because we have already switched into the text segment's bank above
                 if(
                     vwf_textarea_word_length((uint8_t *)(vwf_textarea_current_segment->text + vwf_textarea_current_character_index)) >=
-                    (vwf_textarea_current_x_pos >= vwf_textarea_w ? 0 : (vwf_textarea_w - vwf_textarea_current_x_pos) * DEVICE_TILE_SIZE + (DEVICE_TILE_SIZE - vwf_textarea_current_offset))
+                    (vwf_textarea_current_x_pos >= vwf_textarea_w ? 0 : (vwf_textarea_w - vwf_textarea_current_x_pos - 1) * DEVICE_TILE_SIZE + (DEVICE_TILE_SIZE - vwf_textarea_current_offset))
                 ) {
                     if(vwf_textarea_current_line < vwf_textarea_h) {
                         //If we have more lines, then force a newline.
