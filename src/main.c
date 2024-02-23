@@ -11,8 +11,8 @@
 const vwf_text_segment_t segment_1 = { &segment_2, "This is a textarea.\nPress A to advance text!\0"};
 //const vwf_text_segment_t segment_1 = { &segment_2, "without any sort of merit or plan.\0"};
 const vwf_text_segment_t segment_2 = { &segment_3, "Pretty neat!\0"};
-const vwf_text_segment_t segment_3 = { &segment_1, "They had !l!i!t!t!l!e! !m!o!n!e!y.\0"};
-//const vwf_text_segment_t segment_3 = { &segment_1, "This is a really long piece of text without any sort of breaks or manual newlines. I think that most of the time I'll probably write text like this so I want to make sure it works. Also I want to test the length. Supercalifragilisticexpialudoucious."};
+//const vwf_text_segment_t segment_3 = { &segment_1, "They had !l!i!t!t!l!e! !m!o!n!e!y.\0"};
+const vwf_text_segment_t segment_3 = { &segment_1, "This is a really long piece of text without any sort of breaks or manual newlines. I think that most of the time I'll probably write text like this so I want to make sure it works. Also I want to test the length. Supercalifragilisticexpialudoucious."};
 
 
 //This is for debug purposes. I'm tired of rewriting it so I'm leaving it in this time.
