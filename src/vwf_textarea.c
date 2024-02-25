@@ -98,6 +98,15 @@ void vwf_textarea_print_reset(uint8_t tile) {
     vwf_textarea_swap_tiles();
 }
 
+void resetTextareaTilemap() {
+    //Clear out the textarea with the default tile
+    for (uint8_t y = vwf_textarea_y; y <= vwf_textarea_h; ++y) {
+        for(uint8_t x = vwf_textarea_x; x <= vwf_textarea_w; ++x) {
+            set_bkg_tile_xy(x, y, vwf_textarea_default_tile);
+        }
+    }
+}
+
 void vwf_initialize_textarea(uint8_t xTile, uint8_t yTile, uint8_t width, uint8_t height, uint8_t vram_start_index, uint8_t vram_default_tile) {
     //Init the paused flag.
     vwf_textarea_textfill_paused = FALSE;
@@ -124,12 +133,10 @@ void vwf_initialize_textarea(uint8_t xTile, uint8_t yTile, uint8_t width, uint8_
         set_vram_byte((uint8_t *)(i + vwf_textarea_vram_start_tile), 0x00);
     }
 
-    //TODO: Set the tilemap here for the textarea
     //Set the tile index to use if we need to erase a mistake in our rendering
     vwf_textarea_default_tile = vram_default_tile;
 
-    //Clear out the textarea with the default tile
-    set_bkg_tiles(vwf_textarea_x, vwf_textarea_y, vwf_textarea_w, vwf_textarea_h, (const uint8_t *)vwf_textarea_default_tile);
+    resetTextareaTilemap();
 
     //TODO: I need to do something about the x and y variables here. Where do I get these from? Do I even need these in the textarea function?
     //This pointer is for tracking the place on the background/window map to render a character to
@@ -369,7 +376,7 @@ void vwf_textarea_vblank_update() NONBANKED {
                     }
 
                     //Clear out the textarea with the default tile
-                    set_bkg_tiles(vwf_textarea_x, vwf_textarea_y, vwf_textarea_w, vwf_textarea_h, (const uint8_t *)vwf_textarea_default_tile);
+                    resetTextareaTilemap();
 
                     //Reset the tilemap pointer to the first tile we need to draw on
                     vwf_textarea_tilemap_ptr = vwf_textarea_tilemap_base_address + (vwf_textarea_y + DEVICE_SCREEN_Y_OFFSET) * (DEVICE_SCREEN_BUFFER_WIDTH * DEVICE_SCREEN_MAP_ENTRY_SIZE) + ((vwf_textarea_x + DEVICE_SCREEN_X_OFFSET) * DEVICE_SCREEN_MAP_ENTRY_SIZE);
