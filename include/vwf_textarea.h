@@ -76,7 +76,6 @@ extern uint8_t vwf_textarea_delay_frame_target;
 extern uint8_t vwf_textarea_delay_frame_current;
 
 //Textarea function definitions
-void vwf_textarea_print_reset(uint8_t tile);
 void vwf_initialize_textarea(uint8_t xTile, uint8_t yTile, uint8_t width, uint8_t height, uint8_t vram_start_index, uint8_t vram_default_tile);
 void vwf_textarea_set_text_segment(vwf_text_segment_t * first_text_segment_ptr, uint8_t text_segment_bank);
 void vwf_textarea_set_text_speed(uint8_t characters_per_tick, uint8_t animationticks_per_character_tick);
