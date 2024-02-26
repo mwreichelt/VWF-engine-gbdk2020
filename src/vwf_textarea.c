@@ -99,6 +99,12 @@ void vwf_textarea_print_reset(uint8_t tile) {
 }
 
 void resetTextareaTilemap() {
+    //Clear out vram data for the text area.
+    vwf_textarea_vram_current_tile = vwf_textarea_vram_start_tile;
+    for (uint8_t i = 0; i < vwf_textarea_vram_count; ++i) {
+        set_vram_byte((uint8_t *)(i + vwf_textarea_vram_start_tile), 0x00);
+    }
+
     //Clear out the textarea with the default tile
     for (uint8_t y = vwf_textarea_y; y <= vwf_textarea_h; ++y) {
         for(uint8_t x = vwf_textarea_x; x <= vwf_textarea_w; ++x) {
@@ -245,15 +251,26 @@ void vwf_textarea_vblank_update() NONBANKED {
                     (vwf_textarea_current_x_pos >= vwf_textarea_w ? 0 : (vwf_textarea_w - vwf_textarea_current_x_pos - 1) * DEVICE_TILE_SIZE + (DEVICE_TILE_SIZE - vwf_textarea_current_offset))
                 ) {
                     if(vwf_textarea_current_line < vwf_textarea_h) {
-                        //If we have more lines, then force a newline.
-                        vwf_textarea_force_newline = TRUE;
-                        vwf_textarea_textfill_paused = TRUE;
+                        //If we're forcing a newline, say in the middle of a word, we're going to lie about the next character
+                        // being a \n and then decrement the character counter
+                        if(vwf_textarea_next_character != '\n') {
+                            //Unless, of course, if the next character is a \n anyways.
+                            vwf_textarea_current_character_index -= 1;
+                            vwf_textarea_next_character = '\n';
+                        }
+                        vwf_textarea_force_newline = FALSE;
                     } else {
                         //If we are at our textarea limit, then pause.
                         vwf_textarea_textfill_paused = TRUE;
+                        if(vwf_textarea_next_character == '\n') {
+                            //Unless, of course, if the next character is a \n anyways.
+                            vwf_textarea_current_character_index += 1;
+                        }
                     }
                 }
-            } else { //Else, let's render/process our next character.
+            }
+
+            if(vwf_textarea_textfill_paused == FALSE) { //Are we good to render/process our next character?
                 //If we are at a word break character, then we need to calc the length of the next word on the next trip through this function
                 if(vwf_textarea_is_word_break_char((char)vwf_textarea_next_character)) {
                     vwf_textarea_need_word_length_calc = TRUE;
@@ -264,13 +281,13 @@ void vwf_textarea_vblank_update() NONBANKED {
                     //TODO: Add support for control codes
                     case '\n':
                         //Increment the current line that we're on
-                        vwf_textarea_current_line += 1;
+                        vwf_textarea_current_line++;
 
                         //Reset our x position
                         vwf_textarea_current_x_pos = 0;
 
-                        //Revert the tilemap where we had been to the default tile
-                        set_vram_byte(vwf_textarea_tilemap_ptr, vwf_textarea_default_tile);
+                        //Advance what tile we're pointing to in vram as the current tile to edit
+                        vwf_textarea_vram_current_tile++;
 
                         //Recalculate the screen tile that we need to point to
                         vwf_textarea_tilemap_ptr = vwf_textarea_tilemap_base_address +
@@ -280,7 +297,7 @@ void vwf_textarea_vblank_update() NONBANKED {
 
                         //If our offset is not 0, we need to reset the current tile and offset for a new line.
                         if (vwf_textarea_current_offset > 1 && vwf_textarea_current_offset < 8) {
-                            vwf_textarea_print_reset(vwf_textarea_vram_current_tile + 1);
+                            vwf_textarea_current_offset = 0;
                         }
 
                         //Consume the character so we can move along.
@@ -311,9 +328,11 @@ void vwf_textarea_vblank_update() NONBANKED {
                     default:
                         //Render the character and return true iff we cross into a new tile in vram
                         if (vwf_textarea_render_char(vwf_textarea_next_character)) {
-                            //We're in a new tile now, so we need to set the previous tile's address in the tile map so
-                            // it appears on the screen
-                            set_vram_byte(vwf_textarea_tilemap_ptr, vwf_textarea_vram_current_tile - 1);
+                            if(vwf_textarea_current_x_pos < vwf_textarea_w) {
+                                //We're in a new tile now, so we need to set the previous tile's address in the tile map so
+                                // it appears on the screen
+                                set_vram_byte(vwf_textarea_tilemap_ptr, vwf_textarea_vram_current_tile - 1);
+                            }
 
                             //Then increment our vwf_textarea_tilemap_ptr
                             vwf_textarea_tilemap_ptr += DEVICE_SCREEN_MAP_ENTRY_SIZE;
@@ -335,23 +354,6 @@ void vwf_textarea_vblank_update() NONBANKED {
             //If we are in here, we are at a rest point and the user needs to hit the A button to unpause us
             //TODO: Do we need to change any sprites for the text box animation? Like a "Hit the button!" animation.
 
-            //Load the next character to be rendered
-            vwf_textarea_next_character = vwf_read_banked_ubyte(
-                    vwf_textarea_current_segment->text + vwf_textarea_current_character_index,
-                    vwf_textarea_current_segment_bank
-            );
-
-            if (vwf_textarea_force_newline) {
-                //If we're forcing a newline, say in the middle of a word, we're going to lie about the next character
-                // being a \n and then decrement the character counter
-                if(vwf_textarea_next_character != '\n') {
-                    //Unless, of course, if the next character is a \n anyways.
-                    vwf_textarea_current_character_index -= 1;
-                    vwf_textarea_next_character = '\n';
-                }
-                vwf_textarea_force_newline = FALSE;
-            }
-
             switch(vwf_textarea_next_character) {
                 case '\0':
                     vwf_textarea_current_character_index = 0;
@@ -370,10 +372,6 @@ void vwf_textarea_vblank_update() NONBANKED {
                     vwf_textarea_current_line = 0;
                     vwf_textarea_current_x_pos = 0;
                     vwf_textarea_print_reset(vwf_textarea_vram_start_tile);
-                    vwf_textarea_vram_current_tile = vwf_textarea_vram_start_tile;
-                    for (uint8_t i = 0; i < vwf_textarea_vram_count; ++i) {
-                        set_vram_byte((uint8_t *)(i + vwf_textarea_vram_start_tile), 0x00);
-                    }
 
                     //Clear out the textarea with the default tile
                     resetTextareaTilemap();
