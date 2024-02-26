@@ -91,13 +91,6 @@ uint8_t vwf_textarea_char_delay = FALSE;
 uint8_t vwf_textarea_delay_frame_target;
 uint8_t vwf_textarea_delay_frame_current;
 
-void vwf_textarea_print_reset(uint8_t tile) {
-    vwf_textarea_vram_current_tile = tile;
-    vwf_textarea_current_offset = 0;
-    vwf_textarea_swap_tiles();
-    vwf_textarea_swap_tiles();
-}
-
 void resetTextareaTilemap() {
     //Clear out vram data for the text area.
     vwf_textarea_vram_current_tile = vwf_textarea_vram_start_tile;
@@ -132,12 +125,6 @@ void vwf_initialize_textarea(uint8_t xTile, uint8_t yTile, uint8_t width, uint8_
     vwf_textarea_vram_width = 0u;
     vwf_textarea_current_character_index = 0u;
     vwf_textarea_force_newline = FALSE;
-
-    //Initialize the vram tiles
-    vwf_textarea_print_reset(vram_start_index);
-    for (uint8_t i = 0; i < vwf_textarea_vram_count; ++i) {
-        set_vram_byte((uint8_t *)(i + vwf_textarea_vram_start_tile), 0x00);
-    }
 
     //Set the tile index to use if we need to erase a mistake in our rendering
     vwf_textarea_default_tile = vram_default_tile;
@@ -371,7 +358,7 @@ void vwf_textarea_vblank_update() NONBANKED {
                     //Initialize the vram tiles
                     vwf_textarea_current_line = 0;
                     vwf_textarea_current_x_pos = 0;
-                    vwf_textarea_print_reset(vwf_textarea_vram_start_tile);
+                    vwf_textarea_current_offset = 0;
 
                     //Clear out the textarea with the default tile
                     resetTextareaTilemap();
